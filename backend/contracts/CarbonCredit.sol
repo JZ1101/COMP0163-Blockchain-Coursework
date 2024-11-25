@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
-contract MyToken {
-  // total supply of token
-  uint256 constant supply = 100000;
-
+contract CarbonCredit{
+  // specific token for carbon credit
+  uint256 supply;
+  uint256 timeFrame;
+  uint256 period;
+  uint256 startTime;
   // event to be emitted on transfer
   event Transfer(address indexed _from, address indexed _to, uint256 _value);
 
@@ -18,18 +20,29 @@ contract MyToken {
   mapping(address => uint256) balances;
 
   mapping(address => mapping(address => uint256))allowances;
-
-  constructor() {
-    balances[msg.sender]=supply;
+  modifier checkTime(){
+    require(block.timestamp-startTime<=timeFrame*period,"time frame is not reached, can adust supply after",timeFrame*period-block.timestamp+startTime);
+    _;
   }
 
+  constructor(uint256 _supply,time timeFrame) {
+    supply=_supply;//assign the supply
+    timeFrame=_timeFrame;//assign the timeFrame
+    balances[msg.sender]=supply;
+    period = 0;
+    startTime = block.timestamp;
+  }
+  function ajustSupply(uint256 _supply) public checkTime {
+    supply=_supply;
+    period++;
+  }
+
+
   function totalSupply() public pure returns (uint256) {
-    // TODO: return total supply
     return supply;
   }
 
   function balanceOf(address _owner) public view returns (uint256) {
-    // TODO: return the balance of _owner
     return balances[_owner];
   }
 
@@ -40,9 +53,6 @@ contract MyToken {
     emit Transfer(msg.sender,_to, _value);
 
     return true;
-  
-    // TODO: transfer `_value` tokens from sender to `_to`
-    // NOTE: sender needs to have enough tokens
 
   }
 
