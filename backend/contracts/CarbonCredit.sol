@@ -21,11 +21,11 @@ contract CarbonCredit{
 
   mapping(address => mapping(address => uint256))allowances;
   modifier checkTime(){
-    require(block.timestamp-startTime<=timeFrame*period,"time frame is not reached, can adust supply after",timeFrame*period-block.timestamp+startTime);
+    require(block.timestamp-startTime<=timeFrame*period,"time frame is not reached, can adust supply after");
     _;
   }
 
-  constructor(uint256 _supply,time timeFrame) {
+  constructor(uint256 _supply,uint256 _timeFrame) {
     supply=_supply;//assign the supply
     timeFrame=_timeFrame;//assign the timeFrame
     balances[msg.sender]=supply;
@@ -38,7 +38,7 @@ contract CarbonCredit{
   }
 
 
-  function totalSupply() public pure returns (uint256) {
+  function totalSupply() public view  returns (uint256) {
     return supply;
   }
 

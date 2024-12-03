@@ -5,20 +5,20 @@ pragma solidity ^0.8.28;
 This contract is to manage the carbon credit of an organization
 */
 contract CreditManager {
-    public address owner;
-    public uint256 totalCredit;
-    public address[] creditHolders;
-    public mapping(address => uint256) creditBalance;
-    public mapping(address => bool) isHolder;
+    address public owner;
+    uint256 public totalCredit;
+    address[] public creditHolders;
+    mapping(address => uint256) public creditBalance;
+    mapping(address => bool) public holderList;
 
     event creditUsed(address holder, uint256 credit);
 
-    constructor() {
-        owner = msg.sender;
-    }
-
     constructor(address _owner) {
-        owner = _owner;
+        if (_owner == address(0)) {
+            owner = msg.sender;
+        } else {
+            owner = _owner;
+        }
     }
 
     modifier isOwner() {
@@ -27,7 +27,7 @@ contract CreditManager {
     }
 
     modifier isHolder() {
-        require(isHolder[msg.sender], "Only credit holder can call this function");
+        require(holderList[msg.sender], "Only credit holder can call this function");
         _;
     }
 
@@ -38,7 +38,7 @@ contract CreditManager {
     function addCreditHolder(address _holder) public isOwner {
         require(_holder != address(0), "Invalid address");
         creditHolders.push(_holder);
-        isHolder[_holder] = true;
+        holderList[_holder] = true;
     }
     
     function removeCreditHolder(address _holder) public isOwner {
@@ -50,7 +50,7 @@ contract CreditManager {
                 break;
             }
         }
-        isHolder[_holder] = false;
+        holderList[_holder] = false;
     }
 
     /**
@@ -68,7 +68,7 @@ contract CreditManager {
      */
     function reduceCredit(address _holder, uint256 _credit) public isOwner {
         require(_holder != address(0), "Invalid address");
-        require(creditBalance[_holder]-_credit >= 0, "Insufficient credit, holer's credit is "+creditBalance[_holder]);
+        require(creditBalance[_holder]>=_credit, "Insufficient credit");
         creditBalance[_holder] -= _credit;
         totalCredit += _credit;
     }
@@ -77,9 +77,9 @@ contract CreditManager {
      */
     function useCredit(address _holder, uint256 _credit) public isHolder {
         require(_holder != address(0), "Invalid address");
-        require(creditBalance[_holder]-_credit >= 0, "Insufficient credit, your credit is "+creditBalance[_holder]);
+        require(creditBalance[_holder]>= _credit , "Insufficient credit, your credit is ");
         creditBalance[_holder] -= _credit;
-        creditUsed(_holder, _credit);
+        emit creditUsed(_holder, _credit);
     }
     
     /**
@@ -87,7 +87,6 @@ contract CreditManager {
     * @param _creditPerHolder: amount of credit to be distributed to each holder
     */
     function distributeCredit(uint256 _creditPerHolder) public isOwner {
-        require(_holder != address(0), "Invalid address");
         require(totalCredit-_creditPerHolder*creditHolders.length >= 0, "Insufficient credit");
         for(uint i=0; i<creditHolders.length; i++) {
             creditBalance[creditHolders[i]] += _creditPerHolder;
