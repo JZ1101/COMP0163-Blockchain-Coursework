@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 /*
 @title CreditManager contract 
 This contract is to manage the carbon credit of an organization
+Act as a supply chain
 */
 contract CreditManager {
     address public owner;
