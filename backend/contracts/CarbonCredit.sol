@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity ^0.8.28;
 
-contract CarbonCredit{
+contract CarbonCredit is IERC20{
   // specific token for carbon credit
   uint256 supply;
   uint256 timeFrame;
