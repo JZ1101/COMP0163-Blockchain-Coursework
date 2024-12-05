@@ -4,9 +4,6 @@ pragma solidity ^0.8.28;
 import "./IERC20.sol";
 
 contract Exchange {
-    CarbonCredit public immutable carbonCreditToken; // Carbon Credit token
-    IERC20 public immutable deaiToken; // DEAI token
-
     uint256 public reserveCarbonCredit; // Reserve of Carbon Credits
     uint256 public reserveDEAI; // Reserve of DEAI tokens
     uint256 public totalSupply; // Total liquidity shares
