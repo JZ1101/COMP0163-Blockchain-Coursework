@@ -1,7 +1,6 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity ^0.8.28;
 
-import "./VoteToken.sol";
 import "./IERC20.sol";
 
 contract Voting {
@@ -16,13 +15,6 @@ contract Voting {
     IERC20 public voteToken;
 
     event voteUsed(address indexed voter, address indexed recipient, uint256 vote);
-    event TokenDeployed(address indexed tokenAddress);
-    event VotingContractDeployed(address indexed votingContractAddress);
-
-    struct VotingResult {
-        uint8 topic;
-        bool hasPassed;
-    }
 
     constructor(address _owner, address _tokenAddress) {
         owner = _owner == address(0) ? msg.sender : _owner;
@@ -40,12 +32,6 @@ contract Voting {
         _;
     }
 
-    function deployVoteToken(uint256 initialSupply) external returns (address) {
-        VoteToken newVoteToken = new VoteToken(initialSupply);
-        emit TokenDeployed(address(newVoteToken));
-        return address(newVoteToken);
-    }
-
     function changeOwner(address _owner) public isOwner {
         owner = _owner;
     }
@@ -58,8 +44,7 @@ contract Voting {
 
     function removeVoter(address _voter) public isOwner {
         require(_voter != address(0), "Invalid address");
-        // Reset approval that the voter gave to this contract
-        VoteToken(address(voteToken)).approve(address(this), 0); 
+        voteToken.approve(_voter, 0);
         for (uint256 i = 0; i < voters.length; i++) {
             if (voters[i] == _voter) {
                 voters[i] = voters[voters.length - 1];
@@ -75,7 +60,6 @@ contract Voting {
         voteToken.transferFrom(msg.sender, address(this), _votes);
         total_Votes_AMM += _votes;
         voteBalance[msg.sender] += _votes;
-        emit voteUsed(msg.sender, address(this), _votes);  // Add this
     }
 
     function voteForSupplyChainContract(uint256 _votes) public isVoter {
@@ -83,7 +67,6 @@ contract Voting {
         voteToken.transferFrom(msg.sender, address(this), _votes);
         total_Votes_SupplyChain += _votes;
         voteBalance[msg.sender] += _votes;
-        emit voteUsed(msg.sender, address(this), _votes);  // Add this
     }
 
     function voteForRewardContract(uint256 _votes) public isVoter {
@@ -91,7 +74,6 @@ contract Voting {
         voteToken.transferFrom(msg.sender, address(this), _votes);
         total_VotesReward += _votes;
         voteBalance[msg.sender] += _votes;
-        emit voteUsed(msg.sender, address(this), _votes);  // Add this
     }
 
     function getTotalVotesForTopic(uint8 topic) public view returns (bool) {
@@ -104,13 +86,5 @@ contract Voting {
         } else {
             revert("Invalid topic");
         }
-    }
-    
-    function checkIfTopicPassed(address votingContract, uint8 topic) external view returns (VotingResult memory) {
-        require(votingContract != address(0), "Invalid voting contract address");
-        require(topic <= 2, "Invalid topic ID");
-        Voting voting = Voting(votingContract);
-        bool result = voting.getTotalVotesForTopic(topic);
-        return VotingResult({ topic: topic, hasPassed: result });
     }
 }
