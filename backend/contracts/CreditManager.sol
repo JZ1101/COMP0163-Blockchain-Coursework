@@ -104,6 +104,7 @@ contract CreditManager {
     }
     /**
      * @dev for holders to use credit
+     * virtual function can connect to IOT device to deduct credit
      */
     function useCredit(address _recipient, uint256 _amount) public isHolder {
         require(_recipient != address(0), "Invalid recipient address");

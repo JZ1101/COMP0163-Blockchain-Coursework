@@ -1,12 +1,15 @@
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
 import "./IERC20.sol";
 import "./ICreditManager.sol";
+
 /*
 @title Reward contract
 This contract is to reward the factory for being eco-friendly
 */
+
 contract Reward {
     IERC20 public rewardToken;
     ICreditManager public creditManager;
@@ -58,5 +61,6 @@ contract Reward {
     function calculateReward(address _factory) internal view returns (uint256) {
         // simple method
         return 100 * 10**18; // 100 tokens
+
     }
 }
