@@ -5,7 +5,7 @@ describe("Voting System", function () {
   let votingDeployer, voteToken, voting;
   let deployer, voter1, voter2, voter3;
   const initialSupply = 1000;
-  const voteAmount = ethers.parseEther("50");
+  const voteAmount = 50;
 
   beforeEach(async function () {
     [deployer, voter1, voter2, voter3] = await ethers.getSigners();
