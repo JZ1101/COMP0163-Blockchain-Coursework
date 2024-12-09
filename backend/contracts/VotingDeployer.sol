@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 import "./VoteToken.sol";
 import "./Voting.sol";
@@ -39,8 +39,8 @@ contract VotingDeployer {
     /**
      * @dev Fetches whether a topic has passed from the Voting contract.
      * @param votingContract The address of the Voting contract.
-     * @param topic The topic to check (e.g., "AMM", "SupplyChain", "Reward").
-     * @return A VotingResult struct containing the topic and whether it has passed.
+     * @param topic The topic ID to check (0 for AMM, 1 for SupplyChain, 2 for Reward).
+     * @return A VotingResult struct containing the topic ID and whether it has passed.
      */
     function checkIfTopicPassed(address votingContract, uint8 topic) external view returns (VotingResult memory) {
         require(votingContract != address(0), "Invalid voting contract address");
