@@ -9,7 +9,7 @@ contract VotingDeployer {
     event VotingContractDeployed(address indexed votingContractAddress);
 
     struct VotingResult {
-        string topic;
+        uint8 topic;
         bool hasPassed;
     }
 
@@ -42,11 +42,13 @@ contract VotingDeployer {
      * @param topic The topic to check (e.g., "AMM", "SupplyChain", "Reward").
      * @return A VotingResult struct containing the topic and whether it has passed.
      */
-    function checkIfTopicPassed(address votingContract, string memory topic) external view returns (VotingResult memory) {
+    function checkIfTopicPassed(address votingContract, uint8 topic) external view returns (VotingResult memory) {
         require(votingContract != address(0), "Invalid voting contract address");
+        require(topic <= 2, "Invalid topic ID");
+
         Voting voting = Voting(votingContract);
 
-        bool result = voting.hasTopicPassed(topic);
+        bool result = voting.getTotalVotesForTopic(topic);
         return VotingResult({ topic: topic, hasPassed: result });
     }
 }

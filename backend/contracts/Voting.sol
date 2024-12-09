@@ -5,7 +5,6 @@ import "./IERC20.sol";
 
 contract Voting {
     address public owner;
-    uint256 public totalVotes;
     address[] public voters;
     uint256 public total_VotesReward;
     uint256 public total_Votes_AMM;
@@ -77,22 +76,15 @@ contract Voting {
         voteBalance[msg.sender] += _votes;
     }
 
-    function getTotalVotesForTopic(string memory topic) public view returns (uint256) {
-        if (keccak256(abi.encodePacked(topic)) == keccak256(abi.encodePacked("AMM"))) {
-            return total_Votes_AMM;
-        } else if (keccak256(abi.encodePacked(topic)) == keccak256(abi.encodePacked("SupplyChain"))) {
-            return total_Votes_SupplyChain;
-        } else if (keccak256(abi.encodePacked(topic)) == keccak256(abi.encodePacked("Reward"))) {
-            return total_VotesReward;
+    function getTotalVotesForTopic(uint8 topic) public view returns (bool) {
+        if (topic==0) {
+            return total_Votes_AMM>=50;
+        } else if (topic==1) {
+            return total_Votes_SupplyChain>=50;
+        } else if (topic==2) {
+            return total_VotesReward>=50;
         } else {
             revert("Invalid topic");
         }
-    }
-
-    function hasTopicPassed(string memory topic) public view returns (bool) {
-        uint256 topicVotes = getTotalVotesForTopic(topic);
-        require(totalVotes > 0, "No votes cast yet");
-        
-        return (topicVotes * 100) / totalVotes >= 50;
     }
 }
