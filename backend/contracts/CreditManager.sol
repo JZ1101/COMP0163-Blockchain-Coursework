@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity ^0.8.28;
-/*
-@title CreditManager contract 
-This contract is to manage the carbon credit of an organization
-Act as a supply chain
-*/
+
+import "./IReward.sol";
 import "./IERC20.sol";
+
 contract CreditManager {
     address public owner;
     uint256 public totalCredit;
@@ -13,10 +11,27 @@ contract CreditManager {
     mapping(address => uint256) public creditBalance;
     mapping(address => bool) public holderList;
     IERC20 public cct; // carbon credit token
+    IReward public rewardReg; // reward token
+
+
+    uint256 public startTime;
+    OnTimeUsage[] usageData; // ALL usage data to track usage of credit and its time
+    uint256 public periodCount = 0; // to track the period
+    uint256[] yearlyUsageData; // usage data for each year
+    uint256 calculationFlag = 0; // to aviod double calculation of the reward
+
+    //reward claim
+    uint256 public rewardClaimCounter = 0;
+
+    struct OnTimeUsage {
+        uint256 usage;
+        uint256 time;
+    }
 
     event creditUsed(address indexed holder, address indexed recipient, uint256 credit);
     event CreditAllocated(address indexed factory, uint256 amount);
-    constructor(address _owner,address _tokenAddress) {
+
+    constructor(address _owner, address _tokenAddress, address _rewardToken) {
         if (_owner == address(0)) {
             owner = msg.sender;
         } else {
@@ -24,6 +39,8 @@ contract CreditManager {
         }
         require(_tokenAddress != address(0), "Invalid token address");
         cct = IERC20(_tokenAddress);
+        rewardReg = IReward(_rewardToken);
+        startTime = block.timestamp;
     }
 
     modifier isOwner() {
@@ -33,6 +50,11 @@ contract CreditManager {
 
     modifier isHolder() {
         require(holderList[msg.sender], "Only credit holder can call this function");
+        _;
+    }
+
+    modifier isRewardContract() {
+        require(msg.sender == address(rewardReg), "Only reward contract can call this function");
         _;
     }
 
@@ -84,13 +106,14 @@ contract CreditManager {
      * @dev for holders to use credit
      * virtual function can connect to IOT device to deduct credit
      */
-    function useCredit(address _recipient,uint256 _amount) public isHolder {
+    function useCredit(address _recipient, uint256 _amount) public isHolder {
         require(_recipient != address(0), "Invalid recipient address");
         require(cct.allowance(address(this), msg.sender) >= _amount, "Allowance insufficient");
 
         // Factory spends tokens on behalf of the contract
         cct.transferFrom(address(this), _recipient, _amount);
-        emit creditUsed(msg.sender,_recipient,_amount);
+        usageData.push(OnTimeUsage(_amount, block.timestamp));
+        emit creditUsed(msg.sender, _recipient, _amount);
     }
     
     /**
@@ -112,4 +135,41 @@ contract CreditManager {
     function getFactoryAllowance(address _factory) external view returns (uint256) {
         return cct.allowance(address(this), _factory);
     }
+    
+
+
+    modifier PeriodPassed() {
+        require(block.timestamp > startTime*periodCount + 365 days, "Period not passed");
+        _;
+    }
+
+    function getYearlyUsage() public returns (uint256) {
+        uint256 totalUsage = 0;
+        uint256 periodStartTime = periodCount*365 days;
+        uint256 endTime = (periodCount+1)*365 days;
+        OnTimeUsage[] storage usages = usageData;
+        for (uint256 i = calculationFlag; i < usages.length; i++) {
+            if (usages[i].time >= periodStartTime && usages[i].time <= endTime) {
+                totalUsage += usages[i].usage;
+            }
+            if (usages[i].time > endTime) {
+                calculationFlag = i;
+            }
+        }
+        
+        return totalUsage;
+    }
+    function updateYearlyUsage() public PeriodPassed {
+        uint256 totalUsage = getYearlyUsage();
+        yearlyUsageData.push(totalUsage);
+        periodCount++;
+    }
+    function updateRewardClaimCounter() public isRewardContract {
+        rewardClaimCounter++;
+    }
+
+    function tryClaimReward() public {
+        rewardReg.claimReward(address(this),yearlyUsageData,rewardClaimCounter);
+    }
+
 }
