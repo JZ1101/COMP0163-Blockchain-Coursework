@@ -85,9 +85,9 @@ contract Voting {
     }
     
     function checkIfALLTopicPassed() external view returns (VotingResult memory) {
-        require(getTotalVotesForTopic(0), "Failed for topic o AMM, update a new contract address");
-        require(getTotalVotesForTopic(1), "Failed for topic o AMM, update a new contract address");
-        require(getTotalVotesForTopic(2), "Failed for topic o AMM, update a new contract address");
+        require(getTotalVotesForTopic(0), "Failed for topic 0 AMM, update a new contract address");
+        require(getTotalVotesForTopic(1), "Failed for topic 1 Supply Chain, update a new contract address");
+        require(getTotalVotesForTopic(2), "Failed for topic 2 Reward, update a new contract address");
         return VotingResult({topic: 3, hasPassed: true});
     }
 }
