@@ -11,27 +11,15 @@ contract Reward {
     IERC20 public rewardToken;
     ICreditManager public creditManager;
 
-    // set time for evaluate period
-    uint256 public evaluatePeriod = 365 days;
-    uint256 public startTime = block.timestamp;
-    uint256 public evaluateCounter = 0;
-    
-    mapping(address => uint256) public balances;
-    
-    mapping(address => uint256) public YearUsage;
-
     constructor(address _rewardToken) {
         rewardToken = IERC20(_rewardToken);
     }
     /**
      * flow chart
-     * 1. record usage
-     * 2. calculate yearly usage
-     * 3. Check if the factory is eco-friendly
-     * 4. Check if the reward can be claimed
-     * 5. update claim time, and traking index
-     * 6. calculate reward
-     * 7. transfer reward
+     * 1. check if the factory is valid
+     * 2. check if the factory is eco-friendly
+     * 3. calculate the reward
+     * 4. transfer the reward to the factory
     
      */
     modifier isValidFactory(address _factory) {
@@ -49,13 +37,12 @@ contract Reward {
     function claimReward(address _factory, uint256[] memory yearlyUsageData, uint256 rewardClaimCounter) public ecoFriendly(yearlyUsageData,rewardClaimCounter) {
         creditManager = ICreditManager(_factory);
         creditManager.updateRewardClaimCounter();
-        uint256 rewardAmount = calculateReward(_factory);
-        balances[_factory] += rewardAmount;
+        uint256 rewardAmount = calculateReward();
         rewardToken.transfer(_factory, rewardAmount);
 
     }
 
-    function calculateReward(address _factory) internal view returns (uint256) {
+    function calculateReward() internal pure returns (uint256) {
         // simple method
         return 100 * 10**18; // 100 tokens
     }
