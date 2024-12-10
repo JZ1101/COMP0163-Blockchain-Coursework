@@ -165,7 +165,7 @@ contract CreditManager {
         periodCount++;
     }
     function updateRewardClaimCounter() public isRewardContract {
-        rewardClaimCounter++;
+        rewardClaimCounter+=2;
     }
 
     function tryClaimReward() public {
