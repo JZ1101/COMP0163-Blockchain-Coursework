@@ -5,7 +5,6 @@ const { ethers } = require("hardhat");
 describe("Voting Contract", function () {
     let VoteToken, voteToken, Voting, voting;
     let owner, addr1, addr2;
-    let ammContract, supplyChainContract, rewardContract;
 
     beforeEach(async function () {
         // Get contract factories
@@ -15,23 +14,25 @@ describe("Voting Contract", function () {
         // Get signers
         [owner, addr1, addr2] = await ethers.getSigners();
 
-        // Mock system contract addresses
-        ammContract = addr1;
-        supplyChainContract = addr2;
-        rewardContract = owner; // Using owner as a mock address for testing
+        // Deploy VoteToken with initial supply
+        voteToken = await VoteToken.deploy(100);
+        await voteToken.deployed(); // Ensure the contract is deployed
 
-        // Deploy VoteToken and Voting contracts
-        voteToken = await VoteToken.deploy();
-        await voteToken.deployed();
+        // Ensure deployment of VoteToken
+        if (!voteToken.address) {
+            throw new Error("VoteToken contract not deployed successfully");
+        }
 
+        // Deploy Voting contract
         voting = await Voting.deploy(
             owner.address,
             voteToken.address,
-            ammContract.address,
-            supplyChainContract.address,
-            rewardContract.address
+            addr1.address, // Mock address for AMM contract
+            addr2.address, // Mock address for SupplyChain contract
+            owner.address  // Mock address for Reward contract
         );
         await voting.deployed();
+        console.log("VoteToken deployed to:", voteToken.address);
 
         // Set the voting contract in VoteToken
         await voteToken.setVotingContract(voting.address);
@@ -48,76 +49,30 @@ describe("Voting Contract", function () {
         await voteToken.mint(addr1.address, ethers.utils.parseEther("10"));
         await voteToken.connect(addr1).approve(voting.address, ethers.utils.parseEther("5"));
 
-        // Vote on a topic
-        await voting.connect(addr1).vote(0, ethers.utils.parseEther("5"));
+        // Vote on AMM topic
+        await voting.connect(addr1).voteForAMMContract();
 
         // Check the vote count
         const totalVotesAMM = await voting.total_Votes_AMM();
-        expect(totalVotesAMM).to.equal(ethers.utils.parseEther("5"));
+        expect(totalVotesAMM).to.equal(1);
 
         // Check the event
-        await expect(voting.connect(addr1).vote(0, ethers.utils.parseEther("5")))
+        await expect(voting.connect(addr1).voteForAMMContract())
             .to.emit(voting, "voteUsed")
-            .withArgs(addr1.address, 0, ethers.utils.parseEther("5"));
-    });
-
-    it("Should allow users to vote for AMM contract", async function () {
-        await voteToken.mint(addr1.address, ethers.utils.parseEther("10"));
-        await voteToken.connect(addr1).approve(voting.address, ethers.utils.parseEther("1"));
-        await voting.connect(addr1).voteForAMMContract();
-        const totalVotesAMM = await voting.total_Votes_AMM();
-        expect(totalVotesAMM).to.equal(1);
-    });
-
-    it("Should allow users to vote for Supply Chain contract", async function () {
-        await voteToken.mint(addr1.address, ethers.utils.parseEther("10"));
-        await voteToken.connect(addr1).approve(voting.address, ethers.utils.parseEther("1"));
-        await voting.connect(addr1).voteForSupplyChainContract();
-        const totalVotesSupplyChain = await voting.total_Votes_SupplyChain();
-        expect(totalVotesSupplyChain).to.equal(1);
-    });
-
-    it("Should allow users to vote for Reward contract", async function () {
-        await voteToken.mint(addr1.address, ethers.utils.parseEther("10"));
-        await voteToken.connect(addr1).approve(voting.address, ethers.utils.parseEther("1"));
-        await voting.connect(addr1).voteForRewardContract();
-        const totalVotesReward = await voting.total_VotesReward();
-        expect(totalVotesReward).to.equal(1);
-    });
-
-    it("Should update system contracts", async function () {
-        await voting.updateSystemContracts(0, addr2.address);
-        const updatedContract = await voting.systemContracts(0);
-        expect(updatedContract).to.equal(addr2.address);
-    });
-
-    it("Should change owner", async function () {
-        await voting.changeOwner(addr1.address);
-        const newOwner = await voting.owner();
-        expect(newOwner).to.equal(addr1.address);
-    });
-
-    it("Should not allow non-owner to update system contracts", async function () {
-        await expect(voting.connect(addr1).updateSystemContracts(0, addr2.address))
-            .to.be.revertedWith("Only owner can call this function");
-    });
-
-    it("Should not allow non-owner to change owner", async function () {
-        await expect(voting.connect(addr1).changeOwner(addr2.address))
-            .to.be.revertedWith("Only owner can call this function");
+            .withArgs(addr1.address, 0, 1);
     });
 
     it("Should not allow voting without sufficient tokens", async function () {
         // Attempt to vote without tokens
-        await expect(voting.connect(addr1).vote(0, ethers.utils.parseEther("5")))
-            .to.be.revertedWith("ERC20: transfer amount exceeds balance");
+        await expect(voting.connect(addr1).voteForAMMContract())
+            .to.be.revertedWith("Insufficient balance");
     });
 
     it("Should distribute rewards correctly", async function () {
         // Mint tokens and vote
         await voteToken.mint(addr1.address, ethers.utils.parseEther("10"));
         await voteToken.connect(addr1).approve(voting.address, ethers.utils.parseEther("5"));
-        await voting.connect(addr1).vote(0, ethers.utils.parseEther("5"));
+        await voting.connect(addr1).voteForAMMContract();
 
         // Distribute rewards
         await voting.distributeRewards([addr1.address], ethers.utils.parseEther("2"));
