@@ -28,6 +28,7 @@ contract Voting {
         owner = _owner == address(0) ? msg.sender : _owner;
         require(_tokenAddress != address(0), "Invalid token address");
         voteToken = IVoteToken(_tokenAddress);
+        voteToken.addContractOwner();
         systemContracts.push(_ammContract);
         systemContracts.push(_supplyChainContract);
         systemContracts.push(_rewardContract);
