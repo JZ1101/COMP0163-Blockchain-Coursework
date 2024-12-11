@@ -121,13 +121,38 @@ contract CreditManager {
      */
     function useCredit(address _recipient, uint256 _amount) public isHolder {
         require(_recipient != address(0), "Invalid recipient address");
-        require(cct.allowance(address(this), msg.sender) >= _amount, "Allowance insufficient");
 
-        // Factory spends tokens on behalf of the contract
-        cct.transferFrom(address(this), _recipient, _amount);
+        // Data encoding for transferFrom
+        bytes memory data = abi.encodeWithSignature(
+            "transferFrom(address,address,uint256)",
+            address(this),    // From: contract
+            _recipient,       // To: recipient
+            _amount           // Amount
+        );
+
+        // Delegate the call to the ERC-20 contract
+        (bool success, ) = address(cct).delegatecall(data);
+
+        require(success, "Token transfer failed");
+
+        // Log the usage
         usageData.push(OnTimeUsage(_amount, block.timestamp));
         emit creditUsed(msg.sender, _recipient, _amount);
     }
+
+    // function useCredit(address _recipient, uint256 _amount) public isHolder {
+    //     require(_recipient != address(0), "Invalid recipient address");
+    //     require(cct.allowance(address(this), msg.sender) >= _amount, "Allowance insufficient");
+
+    //     // Factory spends tokens on behalf of the contract
+    //     (bool success, ) = address(cct).call(
+    //     abi.encodeWithSignature("transferFrom(address(this), _recipient, _amount)", _recipient, _amount)
+    // );
+    //     require(success, "Token transfer failed");
+    //     // cct.transferFrom(address(this), _recipient, _amount);
+    //     usageData.push(OnTimeUsage(_amount, block.timestamp));
+    //     emit creditUsed(msg.sender, _recipient, _amount);
+    // }
     
     /**
     * @dev for owner to distribute credit to all holders
