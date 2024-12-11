@@ -159,8 +159,8 @@ contract CreditManager {
      * @dev for contract manager to approve credit to factory
      */
     function cApprove(address _spender, uint256 _value) public returns (bool) {
-        cAllowances[msg.sender][_spender]=_value;
-        emit Approval(msg.sender, _spender, _value);
+        cAllowances[address(this)][_spender]=_value;
+        emit Approval(address(this), _spender, _value);
         return true;
     }
     /**
