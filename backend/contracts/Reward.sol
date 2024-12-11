@@ -53,6 +53,13 @@ contract Reward {
         return true;
     }
 
+    /**
+     * @dev Function to calculate the reward
+     * currently a simple method, can be updated to a more complex method in the future
+     * for example, based on the usage data of the factory and the reward claim counter
+     * also decreasing in percentage based on the number of times the reward is claimed
+     * @return The reward amount
+     */
     function calculateReward() internal pure returns (uint256) {
         // simple method
         return 100 * 10**18; // 100 tokens
