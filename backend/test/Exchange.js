@@ -192,8 +192,8 @@ describe("Exchange", function () {
       await exchange.connect(user1).swap(await carbonCredit.getAddress(), SWAP_AMOUNT);
       const afterDEAIBalance = await deaiToken.balanceOf(user1.address);
       
-      // Calculate expected output with 0.3% fee
-      const amountInWithFee = (SWAP_AMOUNT * 997n) / 1000n;
+      // Calculate expected output with 0.1% fee
+      const amountInWithFee = (SWAP_AMOUNT * 999n) / 1000n;
       const expectedOutput = (INITIAL_LIQUIDITY_DEAI * amountInWithFee) / (INITIAL_LIQUIDITY_CARBON + amountInWithFee);
       
       expect(afterDEAIBalance - beforeDEAIBalance).to.equal(expectedOutput);

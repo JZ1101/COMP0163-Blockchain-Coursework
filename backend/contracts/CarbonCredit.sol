@@ -27,7 +27,7 @@ contract CarbonCredit is IERC20{
     _;
   }
   modifier checkTime(){
-    require(block.timestamp-startTime<=timeFrame*period,"time frame is not reached, can adust supply after");
+    require(block.timestamp-startTime>=timeFrame*period,"time frame is not reached, can adust supply after");
     _;
   }
 
