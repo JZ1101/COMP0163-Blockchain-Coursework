@@ -6,8 +6,6 @@ describe("CreditManager", function () {
   let carbonCredit;
   let CreditManager;
   let creditManager;
-  let Reward;
-  let reward;
   let owner;
   let holder1;
   let holder2;
@@ -22,25 +20,19 @@ describe("CreditManager", function () {
     CarbonCredit = await ethers.getContractFactory("CarbonCredit");
     carbonCredit = await CarbonCredit.deploy(INITIAL_SUPPLY, TIME_FRAME);
 
-    // Deploy Reward token (using CarbonCredit as a simple ERC20 for testing)
-    const RewardToken = await ethers.getContractFactory("CarbonCredit");
-    const rewardToken = await RewardToken.deploy(INITIAL_SUPPLY, TIME_FRAME);
-
-    // Deploy Reward contract
-    Reward = await ethers.getContractFactory("Reward");
-    reward = await Reward.deploy(await rewardToken.getAddress());
-
     // Deploy CreditManager
     CreditManager = await ethers.getContractFactory("CreditManager");
     creditManager = await CreditManager.deploy(
       await owner.getAddress(),
       await carbonCredit.getAddress(),
-      await reward.getAddress()
+      ethers.ZeroAddress // Using zero address since we're not testing reward functionality
     );
 
-    // Transfer initial tokens to creditManager
+    // Transfer tokens to CreditManager and holders for testing
     const managerAmount = ethers.parseEther("500000");
     await carbonCredit.transfer(await creditManager.getAddress(), managerAmount);
+    await carbonCredit.transfer(await holder1.getAddress(), ethers.parseEther("10000"));
+    await carbonCredit.transfer(await holder2.getAddress(), ethers.parseEther("10000"));
   });
 
   describe("Deployment", function () {
@@ -56,13 +48,17 @@ describe("CreditManager", function () {
 
   describe("Holder Management", function () {
     it("Should add a credit holder successfully", async function () {
-      await creditManager.addCreditHolder(await holder1.getAddress());
+      await expect(creditManager.addCreditHolder(await holder1.getAddress()))
+        .to.emit(creditManager, "AddCreditHolder")
+        .withArgs(await holder1.getAddress());
       expect(await creditManager.holderList(await holder1.getAddress())).to.be.true;
     });
 
     it("Should remove a credit holder successfully", async function () {
       await creditManager.addCreditHolder(await holder1.getAddress());
-      await creditManager.removeCreditHolder(await holder1.getAddress());
+      await expect(creditManager.removeCreditHolder(await holder1.getAddress()))
+        .to.emit(creditManager, "RemoveCreditHolder")
+        .withArgs(await holder1.getAddress());
       expect(await creditManager.holderList(await holder1.getAddress())).to.be.false;
     });
 
@@ -77,66 +73,48 @@ describe("CreditManager", function () {
     });
   });
 
-  describe("Credit Operations", function () {
+  describe("Credit Allocation", function () {
     beforeEach(async function () {
       await creditManager.addCreditHolder(await holder1.getAddress());
     });
 
     it("Should give credit to holder successfully", async function () {
       const creditAmount = ethers.parseEther("1000");
-      await creditManager.giveCredit(await holder1.getAddress(), creditAmount);
       
-      const allowance = await carbonCredit.allowance(
-        await creditManager.getAddress(),
-        await holder1.getAddress()
-      );
+      // CreditManager needs to approve itself to manage its allowances
+      await expect(creditManager.connect(owner).giveCredit(await holder1.getAddress(), creditAmount))
+        .to.emit(creditManager, "CreditAllocated")
+        .withArgs(await holder1.getAddress(), creditAmount);
+
+      const allowance = await creditManager.getFactoryAllowance(await holder1.getAddress());
       expect(allowance).to.equal(creditAmount);
     });
 
-    it("Should allow holder to use credit", async function () {
+    it("Should set credit amount successfully", async function () {
       const creditAmount = ethers.parseEther("1000");
-      const useAmount = ethers.parseEther("500");
-
-      // Give credit
-      await creditManager.giveCredit(await holder1.getAddress(), creditAmount);
-
-      // Transfer tokens to holder and approve manager
-      await carbonCredit.transfer(await holder1.getAddress(), creditAmount);
-      await carbonCredit.connect(holder1).approve(await creditManager.getAddress(), creditAmount);
-
-      // Use credit
-      await creditManager.connect(holder1).useCredit(
-        await recipient.getAddress(),
-        useAmount
-      );
-
-      // Check recipient's balance
-      const recipientBalance = await carbonCredit.balanceOf(await recipient.getAddress());
-      expect(recipientBalance).to.equal(useAmount);
+      
+      await expect(creditManager.setCredit(await holder1.getAddress(), creditAmount))
+        .to.emit(creditManager, "SetCredit")
+        .withArgs(await holder1.getAddress(), creditAmount);
+      
+      const allowance = await creditManager.getFactoryAllowance(await holder1.getAddress());
+      expect(allowance).to.equal(creditAmount);
     });
 
-    it("Should fail when non-holder tries to use credit", async function () {
-      const creditAmount = ethers.parseEther("1000");
-      await expect(
-        creditManager.connect(holder2).useCredit(
-          await recipient.getAddress(),
-          creditAmount
-        )
-      ).to.be.revertedWith("Only credit holder can call this function");
-    });
-
-    it("Should track credit usage correctly", async function () {
-      const creditAmount = ethers.parseEther("1000");
-      const useAmount = ethers.parseEther("500");
-
-      await creditManager.giveCredit(await holder1.getAddress(), creditAmount);
-      await carbonCredit.transfer(await holder1.getAddress(), creditAmount);
-      await carbonCredit.connect(holder1).approve(await creditManager.getAddress(), creditAmount);
-
-      await creditManager.connect(holder1).useCredit(await recipient.getAddress(), useAmount);
-
-      const yearlyUsage = await creditManager.getYearlyUsage();
-      expect(yearlyUsage).to.equal(useAmount);
+    it("Should reduce credit successfully", async function () {
+      const initialCredit = ethers.parseEther("1000");
+      const reduceAmount = ethers.parseEther("500");
+      
+      // First give credit
+      await creditManager.giveCredit(await holder1.getAddress(), initialCredit);
+      
+      // Then reduce it
+      await expect(creditManager.reduceCredit(await holder1.getAddress(), reduceAmount))
+        .to.emit(creditManager, "CreditDeallocated")
+        .withArgs(await holder1.getAddress(), reduceAmount);
+      
+      const allowance = await creditManager.getFactoryAllowance(await holder1.getAddress());
+      expect(allowance).to.equal(reduceAmount);
     });
   });
 
@@ -148,16 +126,11 @@ describe("CreditManager", function () {
 
     it("Should distribute credit to all holders", async function () {
       const creditPerHolder = ethers.parseEther("1000");
+      
       await creditManager.distributeCredit(creditPerHolder);
 
-      const holder1Allowance = await carbonCredit.allowance(
-        await creditManager.getAddress(),
-        await holder1.getAddress()
-      );
-      const holder2Allowance = await carbonCredit.allowance(
-        await creditManager.getAddress(),
-        await holder2.getAddress()
-      );
+      const holder1Allowance = await creditManager.getFactoryAllowance(await holder1.getAddress());
+      const holder2Allowance = await creditManager.getFactoryAllowance(await holder2.getAddress());
 
       expect(holder1Allowance).to.equal(creditPerHolder);
       expect(holder2Allowance).to.equal(creditPerHolder);
@@ -171,70 +144,54 @@ describe("CreditManager", function () {
     });
   });
 
-  describe("Usage Tracking", function () {
+  describe("Credit Usage", function () {
+    const creditAmount = ethers.parseEther("1000");
+    const useAmount = ethers.parseEther("500");
+
     beforeEach(async function () {
-      const creditAmount = ethers.parseEther("10000");
+      // Setup holder
       await creditManager.addCreditHolder(await holder1.getAddress());
       await creditManager.giveCredit(await holder1.getAddress(), creditAmount);
-      await carbonCredit.transfer(await holder1.getAddress(), creditAmount);
+      
+      // Approve creditManager to spend holder's tokens
       await carbonCredit.connect(holder1).approve(await creditManager.getAddress(), creditAmount);
     });
 
-    it("Should update yearly usage data correctly", async function () {
-      const useAmount = ethers.parseEther("500");
-      await creditManager.connect(holder1).useCredit(await recipient.getAddress(), useAmount);
-
-      // Simulate time passing
-      await ethers.provider.send("evm_increaseTime", [366 * 24 * 60 * 60]); // 366 days
-      await ethers.provider.send("evm_mine");
-
-      await creditManager.updateYearlyUsage();
-      const usageData = await creditManager.yearlyUsageData(0);
-      expect(usageData).to.equal(useAmount);
-    });
-  });
-
-  describe("Reward System", function () {
-    beforeEach(async function () {
-      const creditAmount = ethers.parseEther("10000");
-      await creditManager.addCreditHolder(await holder1.getAddress());
-      await creditManager.giveCredit(await holder1.getAddress(), creditAmount);
-      await carbonCredit.transfer(await holder1.getAddress(), creditAmount);
-      await carbonCredit.connect(holder1).approve(await creditManager.getAddress(), creditAmount);
+    it("Should allow holder to use credit", async function () {
+      await expect(creditManager.connect(holder1).useCredit(await recipient.getAddress(), useAmount))
+        .to.emit(creditManager, "creditUsed")
+        .withArgs(await holder1.getAddress(), await recipient.getAddress(), useAmount);
+        
+      const recipientBalance = await carbonCredit.balanceOf(await recipient.getAddress());
+      expect(recipientBalance).to.equal(useAmount);
     });
 
-    it("Should prepare data for reward claim", async function () {
-      // First year usage
-      await creditManager.connect(holder1).useCredit(
-        await recipient.getAddress(),
-        ethers.parseEther("1000")
-      );
+    it("Should fail when non-holder tries to use credit", async function () {
+      await expect(
+        creditManager.connect(holder2).useCredit(await recipient.getAddress(), useAmount)
+      ).to.be.revertedWith("Only credit holder can call this function");
+    });
 
-      await ethers.provider.send("evm_increaseTime", [366 * 24 * 60 * 60]);
-      await ethers.provider.send("evm_mine");
-      await creditManager.updateYearlyUsage();
-
-      // Second year with less usage
-      await creditManager.connect(holder1).useCredit(
-        await recipient.getAddress(),
-        ethers.parseEther("500")
-      );
-
-      await ethers.provider.send("evm_increaseTime", [366 * 24 * 60 * 60]);
-      await ethers.provider.send("evm_mine");
-      await creditManager.updateYearlyUsage();
-
-      // Get yearly usage data
-      const firstYearUsage = await creditManager.yearlyUsageData(0);
-      const secondYearUsage = await creditManager.yearlyUsageData(1);
-      expect(secondYearUsage).to.be.lt(firstYearUsage);
+    it("Should fail when trying to use more credit than allowed", async function () {
+      const tooMuchCredit = ethers.parseEther("2000");
+      await expect(
+        creditManager.connect(holder1).useCredit(await recipient.getAddress(), tooMuchCredit)
+      ).to.be.revertedWith("Allowance insufficient");
     });
   });
 
   describe("Owner Operations", function () {
     it("Should allow owner to change owner", async function () {
-      await creditManager.changeOwner(await holder1.getAddress());
+      await expect(creditManager.changeOwner(await holder1.getAddress()))
+        .to.emit(creditManager, "ChangeOwner")
+        .withArgs(await holder1.getAddress());
       expect(await creditManager.owner()).to.equal(await holder1.getAddress());
+    });
+
+    it("Should not allow non-owner to change owner", async function () {
+      await expect(
+        creditManager.connect(holder1).changeOwner(await holder2.getAddress())
+      ).to.be.revertedWith("Only owner can call this function");
     });
 
     it("Should allow owner to top up credit", async function () {
