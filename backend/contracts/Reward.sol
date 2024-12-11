@@ -21,11 +21,6 @@ contract Reward {
      * 3. calculate the reward
      * 4. transfer the reward to the factory
      */
-    modifier isValidFactory(address _factory) {
-        // check if the factory is valid
-        // holding a specific token and has a valid credit manager
-        _;
-    }
 
     /**
      * @dev Modifier to check if the factory is eco-friendly
@@ -46,7 +41,7 @@ contract Reward {
      * @param rewardClaimCounter The reward claim counter, incremented by the credit manager after each reward claim, to prevent double claiming
      */
     function claimReward(address _factory, uint256[] memory yearlyUsageData, uint256 rewardClaimCounter) public ecoFriendly(yearlyUsageData,rewardClaimCounter) returns (bool) {
-        creditManager = ICreditManager(_factory);
+        creditManager = ICreditManager(_factory); // check if the factory is valid
         creditManager.updateRewardClaimCounter();
         uint256 rewardAmount = calculateReward();
         require(rewardToken.transfer(_factory, rewardAmount),"Transfer failed");
