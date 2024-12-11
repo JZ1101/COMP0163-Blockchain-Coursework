@@ -3,7 +3,22 @@ pragma solidity ^0.8.28;
 
 import "./IReward.sol";
 import "./IERC20.sol";
-
+/**
+* @title CreditManager contract
+* @notice 
+* This contract is to manage the carbon credit token for the whole organization or company
+* Serves as a spply chain
+* say the company has 10 factories, each factory has its own carbon credit balance, and each factory are stored in the holder list
+* this contract is highly saclable, it can be used for many structures
+* Example:
+* Company A has 10 factories:
+* CreditManager(CM) contract can manage 10 factories(F), CM -> F1, F2, F3, F4, F5, F6, F7, F8, F9, F10
+* 
+* Company B has factories in 3 continent and would like to manage the credit for each continent, furthermore each continent has 30 factories:
+* CM -> Continent1, Continent2, Continent3, Continent1-> F1 to F30, Continent2-> F1 to F30, Continent3-> F1 to F30
+* In that case each continent can have its own CreditManager contract, and serves as a sub-credit manager for the factories
+* and the main CreditManager contract can manage the continent credit manager contracts
+*/
 contract CreditManager {
     address public owner;
     uint256 public totalCredit;
@@ -12,20 +27,7 @@ contract CreditManager {
     mapping(address => bool) public holderList;
     IERC20 public cct; // carbon credit token
     IReward public rewardReg; // reward token
-    /**
-     * @notice 
-     * This contract is to manage the carbon credit token for the whole organization or company
-     * say the company has 10 factories, each factory has its own carbon credit balance, and each factory are stored in the holder list
-     * this contract is highly saclable, it can be used for many structures
-     * Example:
-     * Company A has 10 factories:
-     * CreditManager(CM) contract can manage 10 factories(F), CM -> F1, F2, F3, F4, F5, F6, F7, F8, F9, F10
-     * 
-     * Company B has factories in 3 continent and would like to manage the credit for each continent, furthermore each continent has 30 factories:
-     * CM -> Continent1, Continent2, Continent3, Continent1-> F1 to F30, Continent2-> F1 to F30, Continent3-> F1 to F30
-     * In that case each continent can have its own CreditManager contract, and serves as a sub-credit manager for the factories
-     * and the main CreditManager contract can manage the continent credit manager contracts
-     */
+
 
     uint256 public startTime;
     OnTimeUsage[] usageData; // ALL usage data to track usage of credit and its time

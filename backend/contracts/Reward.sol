@@ -3,10 +3,17 @@ pragma solidity ^0.8.28;
 
 import "./IERC20.sol";
 import "./ICreditManager.sol";
-/*
-@title Reward contract
-This contract is to reward the factory for being eco-friendly
-*/
+
+/**
+ * @title Reward contract
+ * @notice 
+ * This contract is to reward the Company/Factory (holding credit manager contract) for being eco-friendly
+ * flow chart
+ * 1. check if the factory is valid
+ * 2. check if the factory is eco-friendly
+ * 3. calculate the reward
+ * 4. transfer the reward to the factory
+ */
 contract Reward {
     IERC20 public rewardToken;
     ICreditManager public creditManager;
@@ -14,13 +21,6 @@ contract Reward {
     constructor(address _rewardToken) {
         rewardToken = IERC20(_rewardToken);
     }
-    /**
-     * flow chart
-     * 1. check if the factory is valid
-     * 2. check if the factory is eco-friendly
-     * 3. calculate the reward
-     * 4. transfer the reward to the factory
-     */
 
     /**
      * @dev Modifier to check if the factory is eco-friendly

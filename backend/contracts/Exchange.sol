@@ -2,7 +2,14 @@
 pragma solidity ^0.8.28;
 
 import "./IERC20.sol";
-
+/**
+ * @title Exchange contract
+ * @notice 
+ * This contract is to swap between Carbon Credits and DEAI tokens(ERC20 tokens or any other token e.g., ETH, USDT, etc.)
+ * Users can swap between Carbon Credits and DEAI tokens
+ * Users can add liquidity to the pool
+ * Users can remove liquidity from the pool
+ */
 contract Exchange {
     // code mainly learned from UCL COMP0163-Blockchain Lab 5
     IERC20 public immutable carbonCreditToken; // Carbon Credit token

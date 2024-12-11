@@ -2,6 +2,14 @@
 pragma solidity ^0.8.28;
 
 import "./IVoteToken.sol";
+/**
+ * @title Voting contract
+ * @notice 
+ * This contract is to vote for the system contracts AMM, SupplyChain, Reward
+ * Owner can initialize the contract and reset the votes
+ * Voters can vote for the system contracts
+ * Voting continues until 50 votes are reached for each contract
+ */
 
 contract Voting {
     address public owner;
