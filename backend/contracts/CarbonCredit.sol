@@ -8,6 +8,7 @@ contract CarbonCredit is IERC20{
   uint256 timeFrame;
   uint256 period;
   uint256 startTime;
+  address public creditSupplier;
   // event to be emitted on transfer
   event Transfer(address indexed _from, address indexed _to, uint256 _value);
 
@@ -19,8 +20,12 @@ contract CarbonCredit is IERC20{
   );
 
   mapping(address => uint256) balances;
-
   mapping(address => mapping(address => uint256))allowances;
+
+  modifier isCreditSupplier(){
+    require(msg.sender==creditSupplier,"only credit supplier can call this function");
+    _;
+  }
   modifier checkTime(){
     require(block.timestamp-startTime<=timeFrame*period,"time frame is not reached, can adust supply after");
     _;
@@ -32,12 +37,19 @@ contract CarbonCredit is IERC20{
     balances[msg.sender]=supply;
     period = 0;
     startTime = block.timestamp;
+    creditSupplier=msg.sender;
   }
-  function ajustSupply(uint256 _supply) public checkTime {
-    supply=_supply;
+
+  // to add more supply
+  function getSupply(uint256 _supply) public checkTime isCreditSupplier {
+    supply+=_supply;
+    balances[msg.sender]+=_supply;
     period++;
   }
 
+  function changeCreditSupplier(address _newCreditSupplier) public isCreditSupplier {
+    creditSupplier=_newCreditSupplier;
+  }
 
   function totalSupply() public view  returns (uint256) {
     return supply;
