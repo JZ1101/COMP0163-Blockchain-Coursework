@@ -1,5 +1,3 @@
-
-
   CarbonCredit
     balanceOf
       ✔ should return the total supply for the owner (565ms)
@@ -143,3 +141,5 @@
           ✔ Should correctly determine if topic has passed threshold (55ms)
           ✔ Should fail checkIfALLTopicPassed if not all topics passed
           ✔ Should revert on invalid topic query
+
+  91 passing (2s)
