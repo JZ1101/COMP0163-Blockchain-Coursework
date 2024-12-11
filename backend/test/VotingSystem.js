@@ -2,197 +2,248 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 describe("Voting System", function () {
-  let voting, voteToken, Voting;
-  let deployer, voter1, voter2, voter3;
-  const initialSupply = 1000;
-  const voteAmount = ethers.parseEther("50");
+  let voteToken;
+  let voting;
+  let owner;
+  let voter1;
+  let voter2;
+  let ammContract;
+  let supplyChainContract;
+  let rewardContract;
 
-  beforeEach(async function () {
-    [deployer, voter1, voter2, voter3] = await ethers.getSigners();
-    
-    const VoteToken = await ethers.getContractFactory("VoteToken");
-    voteToken = await VoteToken.deploy(initialSupply);
-    await voteToken.waitForDeployment();
-    
-    Voting = await ethers.getContractFactory("Voting");
-    voting = await Voting.deploy(deployer.address, await voteToken.getAddress());
-    await voting.waitForDeployment();
-  });
-
-  describe("VoteToken", function () {
-    it("Should set correct initial supply and token details", async function () {
-      expect(await voteToken.totalSupply()).to.equal(ethers.parseEther(initialSupply.toString()));
-      expect(await voteToken.name()).to.equal("VoteToken");
-      expect(await voteToken.symbol()).to.equal("VOTE");
-      expect(await voteToken.decimals()).to.equal(18);
-    });
-
-    it("Should handle transfers", async function () {
-      const amount = ethers.parseEther("100");
-      await voteToken.transfer(voter1.address, amount);
-      expect(await voteToken.balanceOf(voter1.address)).to.equal(amount);
-      expect(await voteToken.balanceOf(deployer.address)).to.equal(ethers.parseEther("900"));
-    });
-
-    it("Should handle approvals and allowances", async function () {
-      const amount = ethers.parseEther("100");
-      await voteToken.approve(voter1.address, amount);
-      expect(await voteToken.allowance(deployer.address, voter1.address)).to.equal(amount);
-    });
-
-    it("Should handle transferFrom", async function () {
-      const amount = ethers.parseEther("100");
-      await voteToken.approve(voter1.address, amount);
-      await voteToken.connect(voter1).transferFrom(deployer.address, voter2.address, amount);
-      expect(await voteToken.balanceOf(voter2.address)).to.equal(amount);
-      expect(await voteToken.allowance(deployer.address, voter1.address)).to.equal(0);
-    });
-
-    it("Should prevent transfers with insufficient balance", async function () {
-      const amount = ethers.parseEther("2000");
-      await expect(
-        voteToken.transfer(voter1.address, amount)
-      ).to.be.revertedWith("Insufficient balance");
-    });
-
-    it("Should prevent transferFrom with insufficient allowance", async function () {
-      const amount = ethers.parseEther("100");
-      await voteToken.transfer(voter1.address, amount);
-      await expect(
-        voteToken.connect(voter2).transferFrom(voter1.address, voter3.address, amount)
-      ).to.be.revertedWith("Allowance exceeded");
-    });
-  });
-
-  describe("Voting", function () {
+  describe("Initial VoteToken Deployment", function() {
     beforeEach(async function () {
-      await voting.addVoter(voter1.address);
-      await voting.addVoter(voter2.address);
-      await voteToken.transfer(voter1.address, voteAmount * 3n);
-      await voteToken.transfer(voter2.address, voteAmount * 2n);
-      await voteToken.connect(voter1).approve(await voting.getAddress(), voteAmount * 3n);
-      await voteToken.connect(voter2).approve(await voting.getAddress(), voteAmount * 2n);
+      [owner, voter1, voter2, ammContract, supplyChainContract, rewardContract] = await ethers.getSigners();
+
+      const VoteToken = await ethers.getContractFactory("VoteToken");
+      voteToken = await VoteToken.connect(owner).deploy(1000);
+      await voteToken.waitForDeployment();
     });
 
-    it("Should initialize correctly", async function () {
-      const tokenAddress = await voteToken.getAddress();
-      const newVoting = await Voting.deploy(deployer.address, tokenAddress);
-      expect(await newVoting.owner()).to.equal(deployer.address);
-      expect(await newVoting.voteToken()).to.equal(tokenAddress);
+    it("Should assign total supply to owner", async function () {
+      const totalSupply = await voteToken.totalSupply();
+      const ownerBalance = await voteToken.balanceOf(owner.address);
+      expect(ownerBalance.toString()).to.equal(totalSupply.toString());
+    });
+  });
 
-      await expect(
-        Voting.deploy(deployer.address, ethers.ZeroAddress)
-      ).to.be.revertedWith("Invalid token address");
+  describe("Main System Tests", function() {
+    beforeEach(async function () {
+      [owner, voter1, voter2, ammContract, supplyChainContract, rewardContract] = await ethers.getSigners();
+
+      // Deploy VoteToken
+      const VoteToken = await ethers.getContractFactory("VoteToken");
+      voteToken = await VoteToken.connect(owner).deploy(1000);
+      await voteToken.waitForDeployment();
+
+      // Deploy Voting contract
+      const Voting = await ethers.getContractFactory("Voting");
+      voting = await Voting.connect(owner).deploy(
+        owner.address,
+        await voteToken.getAddress(),
+        ammContract.address,
+        supplyChainContract.address,
+        rewardContract.address
+      );
+      await voting.waitForDeployment();
+
+      // Set up the contracts
+      await voteToken.connect(owner).setVotingContract(await voting.getAddress());
+      await voting.connect(owner).initialize();
+
+      // Transfer initial tokens to voters
+      await voteToken.connect(owner).transfer(voter1.address, 10);
+      await voteToken.connect(owner).transfer(voter2.address, 10);
     });
 
-    it("Should deploy new VoteToken", async function () {
-      const tx = await voting.deployVoteToken(initialSupply);
-      const receipt = await tx.wait();
-      const event = receipt.logs.find(x => x.fragment.name === "TokenDeployed");
-      expect(event).to.not.be.undefined;
-      const newToken = await ethers.getContractAt("VoteToken", event.args[0]);
-      expect(await newToken.totalSupply()).to.equal(ethers.parseEther(initialSupply.toString()));
-    });
+    describe("VoteToken Contract", function () {
+      describe("Deployment", function () {
+        it("Should set correct initial values", async function () {
+          expect(await voteToken.owner()).to.equal(owner.address);
+          expect(await voteToken.name()).to.equal("VoteToken");
+          expect(await voteToken.symbol()).to.equal("VOTE");
+          expect(await voteToken.decimals()).to.equal(18);
+          expect(await voteToken.votingContract()).to.equal(await voting.getAddress());
+        });
 
-    it("Should change owner", async function () {
-      await voting.changeOwner(voter1.address);
-      expect(await voting.owner()).to.equal(voter1.address);
-      await expect(
-        voting.addVoter(voter3.address)
-      ).to.be.revertedWith("Only owner can call this function");
-    });
-
-    it("Should handle voter management", async function () {
-      await voting.addVoter(voter3.address);
-      expect(await voting.voterList(voter3.address)).to.be.true;
-      
-      await voting.removeVoter(voter3.address);
-      expect(await voting.voterList(voter3.address)).to.be.false;
-      await expect(
-        voting.connect(voter3).voteForAMMContract(voteAmount)
-      ).to.be.revertedWith("Only voter can call this function");
-    });
-
-    it("Should emit voteUsed events", async function () {
-      const votingAddress = await voting.getAddress();
-      
-      await expect(voting.connect(voter1).voteForAMMContract(voteAmount))
-        .to.emit(voting, "voteUsed")
-        .withArgs(voter1.address, votingAddress, voteAmount);
-
-      await expect(voting.connect(voter1).voteForSupplyChainContract(voteAmount))
-        .to.emit(voting, "voteUsed")
-        .withArgs(voter1.address, votingAddress, voteAmount);
-
-      await expect(voting.connect(voter1).voteForRewardContract(voteAmount))
-        .to.emit(voting, "voteUsed")
-        .withArgs(voter1.address, votingAddress, voteAmount);
-    });
-
-    it("Should track votes correctly", async function () {
-      await voting.connect(voter1).voteForAMMContract(voteAmount);
-      await voting.connect(voter2).voteForAMMContract(voteAmount);
-      expect(await voting.total_Votes_AMM()).to.equal(voteAmount * 2n);
-      expect(await voting.voteBalance(voter1.address)).to.equal(voteAmount);
-      expect(await voting.voteBalance(voter2.address)).to.equal(voteAmount);
-    });
-
-    it("Should check all voting topics correctly", async function () {
-      await voting.connect(voter1).voteForAMMContract(voteAmount);
-      await voting.connect(voter2).voteForSupplyChainContract(voteAmount);
-      await voting.connect(voter1).voteForRewardContract(voteAmount);
-
-      expect(await voting.getTotalVotesForTopic(0)).to.be.true;
-      expect(await voting.getTotalVotesForTopic(1)).to.be.true;
-      expect(await voting.getTotalVotesForTopic(2)).to.be.true;
-
-      const result = await voting.checkIfTopicPassed(await voting.getAddress(), 0);
-      expect(result.topic).to.equal(0);
-      expect(result.hasPassed).to.be.true;
-
-      await expect(voting.getTotalVotesForTopic(3)).to.be.revertedWith("Invalid topic");
-      await expect(
-        voting.checkIfTopicPassed(ethers.ZeroAddress, 0)
-      ).to.be.revertedWith("Invalid voting contract address");
-    });
-
-    it("Should enforce voting restrictions", async function () {
-      await expect(
-        voting.connect(voter3).voteForAMMContract(voteAmount)
-      ).to.be.revertedWith("Only voter can call this function");
-
-      await expect(
-        voting.connect(voter1).voteForAMMContract(0)
-      ).to.be.revertedWith("Invalid votes");
-
-      const largeAmount = ethers.parseEther("1000");
-      await expect(
-        voting.connect(voter1).voteForAMMContract(largeAmount)
-      ).to.be.revertedWith("Insufficient balance");
-    });
-
-    it("Should handle voters array correctly", async function () {
-        await voting.addVoter(voter3.address);
-        expect(await voting.voters(0)).to.equal(voter1.address);
-        
-        await voting.removeVoter(voter2.address);
-        expect(await voting.voters(1)).to.equal(voter3.address);
-        await expect(voting.voters(2)).to.be.reverted;
-    });
-
-    it("Should handle voter removal", async function () {
-        const approvalAmount = ethers.parseEther("100");
-        const votingAddress = await voting.getAddress();
-  
-        await voteToken.transfer(voter3.address, approvalAmount);
-        await voteToken.connect(voter3).approve(votingAddress, approvalAmount);
-        await voting.addVoter(voter3.address);
-        
-        await voting.removeVoter(voter3.address);
-        expect(await voting.voterList(voter3.address)).to.equal(false);
-        await expect(
-          voting.connect(voter3).voteForAMMContract(approvalAmount)
-        ).to.be.revertedWith("Only voter can call this function");
+        it("Should have correct owner balance after transfers", async function () {
+          const totalSupply = await voteToken.totalSupply();
+          const ownerBalance = await voteToken.balanceOf(owner.address);
+          expect(ownerBalance.toString()).to.equal((totalSupply - BigInt(20)).toString());
+        });
       });
+
+      describe("Token Operations", function () {
+        it("Should transfer tokens between accounts", async function () {
+          await voteToken.connect(owner).transfer(voter1.address, 50);
+          const voter1Balance = await voteToken.balanceOf(voter1.address);
+          expect(voter1Balance).to.equal(BigInt(60)); // 50 + 10 initial
+        });
+
+        it("Should fail if sender doesn't have enough tokens", async function () {
+          const initialBalance = await voteToken.balanceOf(voter1.address);
+          await expect(
+            voteToken.connect(voter1).transfer(voter2.address, initialBalance + BigInt(1))
+          ).to.be.revertedWith("Insufficient balance");
+        });
+
+        it("Should emit Transfer event", async function () {
+          await expect(voteToken.connect(owner).transfer(voter1.address, 50))
+            .to.emit(voteToken, "Transfer")
+            .withArgs(owner.address, voter1.address, 50);
+        });
+      });
+
+      describe("Access Control", function () {
+        it("Should not allow setting voting contract twice", async function () {
+          await expect(
+            voteToken.connect(owner).setVotingContract(await voting.getAddress())
+          ).to.be.revertedWith("Voting contract already set");
+        });
+
+        it("Should not allow non-owner to set voting contract", async function () {
+          const newVoteToken = await (await ethers.getContractFactory("VoteToken")).deploy(1000);
+          await expect(
+            newVoteToken.connect(voter1).setVotingContract(await voting.getAddress())
+          ).to.be.revertedWith("Only owner can call this function");
+        });
+      });
+    });
+
+    describe("Voting Contract", function () {
+      describe("Deployment and Initialization", function () {
+        it("Should set the correct owner", async function () {
+          expect(await voting.owner()).to.equal(owner.address);
+        });
+
+        it("Should set correct system contracts", async function () {
+          expect(await voting.systemContracts(0)).to.equal(ammContract.address);
+          expect(await voting.systemContracts(1)).to.equal(supplyChainContract.address);
+          expect(await voting.systemContracts(2)).to.equal(rewardContract.address);
+        });
+
+        it("Should prevent double initialization", async function () {
+          await expect(voting.initialize())
+            .to.be.revertedWith("Already initialized");
+        });
+
+        it("Should prevent non-owner initialization", async function () {
+          const newVoting = await (await ethers.getContractFactory("Voting")).deploy(
+            owner.address,
+            await voteToken.getAddress(),
+            ammContract.address,
+            supplyChainContract.address,
+            rewardContract.address
+          );
+          await expect(
+            newVoting.connect(voter1).initialize()
+          ).to.be.revertedWith("Only owner can call this function");
+        });
+      });
+
+      describe("Voting Operations", function () {
+        it("Should allow voting for AMM contract", async function () {
+          await voting.connect(voter1).voteForAMMContract();
+          expect(await voting.total_Votes_AMM()).to.equal(1);
+          expect(await voteToken.balanceOf(voter1.address)).to.equal(9);
+        });
+
+        it("Should allow voting for Supply Chain contract", async function () {
+          await voting.connect(voter1).voteForSupplyChainContract();
+          expect(await voting.total_Votes_SupplyChain()).to.equal(1);
+          expect(await voteToken.balanceOf(voter1.address)).to.equal(9);
+        });
+
+        it("Should allow voting for Reward contract", async function () {
+          await voting.connect(voter1).voteForRewardContract();
+          expect(await voting.total_VotesReward()).to.equal(1);
+          expect(await voteToken.balanceOf(voter1.address)).to.equal(9);
+        });
+
+        it("Should prevent voting without tokens", async function () {
+          const [, , , , , , nonVoter] = await ethers.getSigners();
+          await expect(
+            voting.connect(nonVoter).voteForAMMContract()
+          ).to.be.revertedWith("Only voter can call this function");
+        });
+
+        it("Should emit VoteUsed event", async function () {
+          await expect(voting.connect(voter1).voteForAMMContract())
+            .to.emit(voting, "VoteUsed")
+            .withArgs(voter1.address, 0, 1);
+        });
+
+        it("Should handle multiple votes until tokens are depleted", async function () {
+          // Initial balance is 10 tokens
+          // Should be able to vote exactly 10 times
+          for (let i = 0; i < 10; i++) {
+            await voting.connect(voter1).voteForAMMContract();
+          }
+          
+          // After using all tokens, should fail with voter check
+          await expect(
+            voting.connect(voter1).voteForAMMContract()
+          ).to.be.revertedWith("Only voter can call this function");
+          
+          // Verify final balance is 0
+          expect(await voteToken.balanceOf(voter1.address)).to.equal(0);
+          // Verify vote count is 10
+          expect(await voting.total_Votes_AMM()).to.equal(10);
+        });
+      });
+
+      describe("System Contract Management", function () {
+        it("Should allow owner to update system contracts", async function () {
+          const newAddress = await voter1.getAddress();
+          await voting.connect(owner).updateSystemContracts(0, newAddress);
+          expect(await voting.systemContracts(0)).to.equal(newAddress);
+        });
+
+        it("Should prevent non-owner from updating system contracts", async function () {
+          await expect(
+            voting.connect(voter1).updateSystemContracts(0, voter2.address)
+          ).to.be.revertedWith("Only owner can call this function");
+        });
+
+        it("Should prevent updating invalid index", async function () {
+          await expect(
+            voting.connect(owner).updateSystemContracts(3, voter1.address)
+          ).to.be.revertedWith("Invalid index");
+        });
+
+        it("Should emit ContractUpdated event", async function () {
+          const newAddress = await voter1.getAddress();
+          await expect(voting.connect(owner).updateSystemContracts(0, newAddress))
+            .to.emit(voting, "ContractUpdated")
+            .withArgs(0, newAddress);
+        });
+      });
+
+      describe("Vote Thresholds and Results", function () {
+        it("Should correctly determine if topic has passed threshold", async function () {
+          // Give voter1 enough tokens to make 50 votes
+          await voteToken.connect(owner).transfer(voter1.address, 50);
+          
+          // Vote 50 times
+          for(let i = 0; i < 50; i++) {
+            await voting.connect(voter1).voteForAMMContract();
+          }
+          
+          expect(await voting.getTotalVotesForTopic(0)).to.equal(true);
+        });
+
+        it("Should fail checkIfALLTopicPassed if not all topics passed", async function () {
+          await expect(
+            voting.checkIfALLTopicPassed()
+          ).to.be.revertedWith("Failed for topic 0 AMM, update a new contract address");
+        });
+
+        it("Should revert on invalid topic query", async function () {
+          await expect(
+            voting.getTotalVotesForTopic(5)
+          ).to.be.revertedWith("Invalid topic");
+        });
+      });
+    });
   });
 });
