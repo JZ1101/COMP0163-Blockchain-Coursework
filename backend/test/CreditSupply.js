@@ -23,7 +23,7 @@ describe("CarbonCredit", function () {
     startTime = block.timestamp;
   });
 
-  describe("getSupply", function () {
+  describe("CreditSupply", function () {
     it("Should allow initial supply increase immediately", async function () {
       const additionalSupply = ethers.parseEther("500");
       const initialTotalSupply = await carbonCredit.totalSupply();
