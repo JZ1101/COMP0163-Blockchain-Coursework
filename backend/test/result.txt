@@ -1,0 +1,145 @@
+
+
+  CarbonCredit
+    balanceOf
+      ✔ should return the total supply for the owner (565ms)
+      ✔ should return 0 for otherAccount
+
+  CreditManager
+    Deployment
+      ✔ Should set the right owner
+      ✔ Should have correct initial balance
+    Holder Management
+      ✔ Should add a credit holder successfully
+      ✔ Should remove a credit holder successfully
+      ✔ Should fail to add zero address as holder
+      ✔ Should fail when non-owner tries to add holder
+    Credit Allocation
+      ✔ Should give credit to holder successfully
+      ✔ Should set credit amount successfully
+      ✔ Should reduce credit successfully
+    Credit Distribution
+      ✔ Should distribute credit to all holders
+      ✔ Should fail distribution if insufficient balance
+    Credit Usage
+      ✔ Should allow holder to use credit
+      ✔ Should fail when non-holder tries to use credit
+      ✔ Should fail when trying to use more credit than allowed
+    Owner Operations
+      ✔ Should allow owner to change owner
+      ✔ Should not allow non-owner to change owner
+      ✔ Should allow owner to top up credit
+
+  CarbonCredit
+    CreditSupply
+      ✔ Should allow initial supply increase immediately
+      ✔ Should revert when called before required timeFrame after first increase
+      ✔ Should revert when called by non-supplier
+      ✔ Should allow multiple supply increases after waiting required timeFrames
+      ✔ Should properly track period increases and enforce timeFrame waits
+
+  Exchange
+    Initialization
+      ✔ Should set the correct token addresses
+    Liquidity
+      ✔ Should add initial liquidity correctly
+      ✔ Should add subsequent liquidity with correct ratio
+      ✔ Should remove liquidity correctly
+    Swapping
+      ✔ Should swap Carbon Credit for DEAI
+      ✔ Should swap DEAI for Carbon Credit
+      ✔ Should fail when swapping with insufficient balance
+      ✔ Should fail when swapping with invalid token
+      ✔ Should update reserves after swap
+      ✔ Should apply correct fees during swap
+    Math Functions
+      ✔ Should handle zero liquidity case correctly
+      ✔ Should prevent adding liquidity with incorrect ratio
+
+  Reward Contract with CarbonCredit Token
+    Deployment
+      ✔ should set the reward token correctly
+    Reward Claims
+      ✔ should revert if usage has not decreased
+      ✔ should revert if not enough data is provided
+    Balances
+      ✔ should update the reward balance correctly after a claim
+    Integration with CreditManager
+      ✔ should allow CreditManager to tryClaimReward
+
+  CarbonCredit
+    totalSupply
+      ✔ should return 1 million
+
+  CarbonCredit
+    transfer
+      ✔ should revert if sender has insufficient balance
+      on success
+        ✔ should transfer tokens
+        ✔ should emit Transfer event
+
+  VoteToken
+    Deployment
+      ✔ Should set the right owner
+      ✔ Should assign the total supply to owner
+      ✔ Should set the correct initial values
+      ✔ Should set correct total supply with decimals
+    Token Transfers
+      ✔ Should transfer tokens between accounts
+      ✔ Should fail if sender doesn't have enough tokens
+      ✔ Should update balances after transfers
+    Voting Contract Management
+      ✔ Should allow owner to set voting contract
+      ✔ Should emit VotingContractSet event
+      ✔ Should prevent setting voting contract to zero address
+      ✔ Should prevent non-owner from setting voting contract
+      ✔ Should prevent setting voting contract twice
+    Token Removal
+      ✔ Should allow voting contract to remove tokens
+      ✔ Should emit RemoveTokens event
+      ✔ Should prevent non-authorized addresses from removing tokens
+      ✔ Should fail if trying to remove more tokens than available
+      ✔ Should allow owner to remove tokens
+    Edge Cases
+      ✔ Should handle zero token transfers
+      ✔ Should handle multiple consecutive transfers
+      ✔ Should prevent removing tokens from zero balance account
+      ✔ Should maintain total supply after token movements
+
+  Voting System
+    Initial VoteToken Deployment
+      ✔ Should assign total supply to owner
+    Main System Tests
+      VoteToken Contract
+        Deployment
+          ✔ Should set correct initial values
+          ✔ Should have correct owner balance after transfers
+        Token Operations
+          ✔ Should transfer tokens between accounts
+          ✔ Should fail if sender doesn't have enough tokens
+          ✔ Should emit Transfer event
+        Access Control
+          ✔ Should not allow setting voting contract twice
+          ✔ Should not allow non-owner to set voting contract
+      Voting Contract
+        Deployment and Initialization
+          ✔ Should set the correct owner
+          ✔ Should set correct system contracts
+          ✔ Should prevent double initialization
+          ✔ Should prevent non-owner initialization
+        Voting Operations
+          ✔ Should allow voting for AMM contract
+          ✔ Should allow voting for Supply Chain contract
+          ✔ Should allow voting for Reward contract
+          ✔ Should prevent voting without tokens
+          ✔ Should emit VoteUsed event
+          ✔ Should handle multiple votes until tokens are depleted
+        System Contract Management
+          ✔ Should allow owner to update system contracts
+          ✔ Should prevent non-owner from updating system contracts
+          ✔ Should prevent updating invalid index
+          ✔ Should emit ContractUpdated event
+        Vote Thresholds and Results
+          ✔ Should correctly determine if topic has passed threshold (55ms)
+          ✔ Should fail checkIfALLTopicPassed if not all topics passed
+          ✔ Should revert on invalid topic query
