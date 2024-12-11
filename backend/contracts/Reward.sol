@@ -34,12 +34,12 @@ contract Reward {
         _;
     }
 
-    function claimReward(address _factory, uint256[] memory yearlyUsageData, uint256 rewardClaimCounter) public ecoFriendly(yearlyUsageData,rewardClaimCounter) {
+    function claimReward(address _factory, uint256[] memory yearlyUsageData, uint256 rewardClaimCounter) public ecoFriendly(yearlyUsageData,rewardClaimCounter) returns (bool) {
         creditManager = ICreditManager(_factory);
         creditManager.updateRewardClaimCounter();
         uint256 rewardAmount = calculateReward();
-        rewardToken.transfer(_factory, rewardAmount);
-
+        require(rewardToken.transfer(_factory, rewardAmount),"Transfer failed");
+        return true;
     }
 
     function calculateReward() internal pure returns (uint256) {

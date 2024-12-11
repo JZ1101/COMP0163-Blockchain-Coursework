@@ -30,7 +30,11 @@ contract CreditManager {
 
     event creditUsed(address indexed holder, address indexed recipient, uint256 credit);
     event CreditAllocated(address indexed factory, uint256 amount);
-
+    event CreditDeallocated(address indexed factory, uint256 amount);// credit has been deallocated to x amount
+    event TopUpCredit(address indexed this_contract, uint256 amount);// balance += amount
+    event UpdateYearlyUsageData(uint256 totalUsage);
+    event UpdateRCCounter(uint256 rewardClaimCounter);
+    
     constructor(address _owner, address _tokenAddress, address _rewardToken) {
         if (_owner == address(0)) {
             owner = msg.sender;
@@ -68,6 +72,11 @@ contract CreditManager {
         holderList[_holder] = true;
     }
     
+    /**
+     * 
+     * @param _holder address of the holder to be removed
+     * @dev for owner to remove credit holder
+     */
     function removeCreditHolder(address _holder) public isOwner {
         require(_holder != address(0), "Invalid address");
         cct.approve(_holder, 0);
@@ -89,10 +98,13 @@ contract CreditManager {
         require(cct.balanceOf(address(this)) >= _amount, "Insufficient contract balance");
         // Approve the factory to spend tokens on behalf of the contract
         cct.approve(_holder, _amount);
+        emit CreditAllocated(_holder, _amount);
     }
 
     /**
-     * @dev for owner to reduce credit from holder, and add it back to total credit
+     * @dev for owner to reduce credit from holder
+     * @param _holder address of the holder to reduce credit from
+     * @param _amount amount of credit to reduce to, e.g., 5 means credit = 5
      */
     function reduceCredit(address _holder, uint256 _amount) public isOwner {
         require(_holder != address(0), "Invalid address");
@@ -101,6 +113,7 @@ contract CreditManager {
 
         // Reduce the allowance by setting a new, lower value
         cct.approve(_holder, currentAllowance - _amount);
+        emit CreditDeallocated(_holder, _amount);
     }
     /**
      * @dev for holders to use credit
@@ -124,12 +137,14 @@ contract CreditManager {
         require(cct.balanceOf(address(this)) >= _creditPerHolder * creditHolders.length, "Insufficient token balance");
         for (uint i = 0; i < creditHolders.length; i++) {
             cct.approve(creditHolders[i], _creditPerHolder);
+            emit CreditAllocated(creditHolders[i], _creditPerHolder);
         }
     }
     
 
     function topUp(uint256 _amount) public isOwner {
-        cct.transfer(address(this), _amount);
+        require(cct.transfer(address(this), _amount),"Top up failed");
+        emit TopUpCredit(address(this), _amount);
     }
 
     function getFactoryAllowance(address _factory) external view returns (uint256) {
@@ -163,13 +178,17 @@ contract CreditManager {
         uint256 totalUsage = getYearlyUsage();
         yearlyUsageData.push(totalUsage);
         periodCount++;
+        emit UpdateYearlyUsageData(totalUsage);
     }
     function updateRewardClaimCounter() public isRewardContract {
         rewardClaimCounter+=2;
+        emit UpdateRCCounter(rewardClaimCounter);
     }
 
     function tryClaimReward() public {
-        rewardReg.claimReward(address(this),yearlyUsageData,rewardClaimCounter);
+        bool success =rewardReg.claimReward(address(this),yearlyUsageData,rewardClaimCounter);
+        require(success,"Reward claim failed");
+
     }
 
 }
