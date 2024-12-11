@@ -12,7 +12,20 @@ contract CreditManager {
     mapping(address => bool) public holderList;
     IERC20 public cct; // carbon credit token
     IReward public rewardReg; // reward token
-
+    /**
+     * @notice 
+     * This contract is to manage the carbon credit token for the whole organization or company
+     * say the company has 10 factories, each factory has its own carbon credit balance, and each factory are stored in the holder list
+     * this contract is highly saclable, it can be used for many structures
+     * Example:
+     * Company A has 10 factories:
+     * CreditManager(CM) contract can manage 10 factories(F), CM -> F1, F2, F3, F4, F5, F6, F7, F8, F9, F10
+     * 
+     * Company B has factories in 3 continent and would like to manage the credit for each continent, furthermore each continent has 30 factories:
+     * CM -> Continent1, Continent2, Continent3, Continent1-> F1 to F30, Continent2-> F1 to F30, Continent3-> F1 to F30
+     * In that case each continent can have its own CreditManager contract, and serves as a sub-credit manager for the factories
+     * and the main CreditManager contract can manage the continent credit manager contracts
+     */
 
     uint256 public startTime;
     OnTimeUsage[] usageData; // ALL usage data to track usage of credit and its time
@@ -25,6 +38,8 @@ contract CreditManager {
     //reward claim
     uint256 public rewardClaimCounter = 0;
 
+    // Struct to store the usage data with time
+    // e.g., usage = 5, time = 1632960000
     struct OnTimeUsage {
         uint256 usage;
         uint256 time;
@@ -202,23 +217,37 @@ contract CreditManager {
         }
     }
     
-
+    /**
+     * @dev for traders to top up credit to the contract
+     * @param _amount amount to top up
+     */
     function topUp(uint256 _amount) public isOwner {
         require(cct.transfer(address(this), _amount),"Top up failed");
         emit TopUpCredit(address(this), _amount);
     }
 
+    /**
+     * 
+     * @param _factory address of the factory
+     */
     function getFactoryAllowance(address _factory) external view returns (uint256) {
         return allowanceOf(address(this), _factory);
     }
     
-
-
+    /**
+     * @dev to check if the period has passed 
+     * i.e., 365 days
+     */
     modifier PeriodPassed() {
         require(block.timestamp > startTime*periodCount + 365 days, "Period not passed");
         _;
     }
 
+    /**
+     * @dev to get the yearly usage data
+     * reason to deploy here is to avoid verification pressure at the reward contract
+     * as there can be many credit manager contracts try to apply for the reward
+     */
     function getYearlyUsage() public returns (uint256) {
         uint256 totalUsage = 0;
         uint256 periodStartTime = periodCount*365 days;
@@ -232,24 +261,35 @@ contract CreditManager {
                 calculationFlag = i;
             }
         }
-        
         return totalUsage;
     }
+
+    /**
+     * @dev to update the yearly usage data
+     * only when the period has passed, i.e., 365 days
+     */
     function updateYearlyUsage() public PeriodPassed {
         uint256 totalUsage = getYearlyUsage();
         yearlyUsageData.push(totalUsage);
         periodCount++;
         emit UpdateYearlyUsageData(totalUsage);
     }
+
+    /**
+     * @dev to update the reward claim counter
+     * only the reward contract can call this function
+     */
     function updateRewardClaimCounter() public isRewardContract {
         rewardClaimCounter+=2;
         emit UpdateRCCounter(rewardClaimCounter);
     }
 
+    /**
+     * @dev try to claim the reward 
+     */
     function tryClaimReward() public {
         bool success =rewardReg.claimReward(address(this),yearlyUsageData,rewardClaimCounter);
         require(success,"Reward claim failed");
-
     }
 
 

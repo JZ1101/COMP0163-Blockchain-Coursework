@@ -72,22 +72,20 @@ contract CarbonCredit is IERC20{
 
   }
 
+  // standard ERC20 function
   function approve(address _spender, uint256 _value) public returns (bool) {
     allowances[msg.sender][_spender]=_value;
     emit Approval(msg.sender, _spender, _value);
 
     return true;
-    // TODO: allow `_spender` to spend `_value` on sender's behalf
-    // NOTE: if an allowance already exists, it should be overwritten
-
   }
 
+  // standard ERC20 function
   function allowance(address _owner, address _spender)
     public
     view
     returns (uint256 remaining)
   {
-    // TODO: return how much `_spender` is allowed to spend on behalf of `_owner`
     return allowances[_owner][_spender];
   }
 }

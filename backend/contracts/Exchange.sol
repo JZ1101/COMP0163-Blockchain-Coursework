@@ -4,11 +4,12 @@ pragma solidity ^0.8.28;
 import "./IERC20.sol";
 
 contract Exchange {
+    // code mainly learned from UCL COMP0163-Blockchain Lab 5
     IERC20 public immutable carbonCreditToken; // Carbon Credit token
     IERC20 public immutable deaiToken; // DEAI token
     
     uint256 public reserveCarbonCredit; // Reserve of Carbon Credits
-    uint256 public reserveDEAI; // Reserve of DEAI tokens
+    uint256 public reserveDEAI; // Reserve of DEAI tokens , or any other token e.g., ETH, USDT, etc.
     uint256 public totalSupply; // Total liquidity shares
     mapping(address => uint256) public balanceOf; // Tracks shares of liquidity providers
 
@@ -52,8 +53,8 @@ contract Exchange {
 
         tokenIn.transferFrom(msg.sender, address(this), _amountIn);
 
-        // Apply 0.3% fee
-        uint256 amountInWithFee = (_amountIn * 997) / 1000;
+        // Apply 0.1% fee
+        uint256 amountInWithFee = (_amountIn * 999) / 1000;
         amountOut = (reserveOut * amountInWithFee) / (reserveIn + amountInWithFee);
 
         tokenOut.transfer(msg.sender, amountOut);
@@ -66,6 +67,12 @@ contract Exchange {
         emit Swap(msg.sender, _tokenIn, _amountIn, amountOut);
     }
 
+    /**
+     * @dev Add liquidity to the pool
+     * @param _amountCarbonCredit The amount of Carbon Credits to add
+     * @param _amountDEAI The amount of DEAI tokens to add
+     * @return shares The amount of liquidity shares minted
+     */
     function addLiquidity(uint256 _amountCarbonCredit, uint256 _amountDEAI) external returns (uint256 shares) {
         carbonCreditToken.transferFrom(msg.sender, address(this), _amountCarbonCredit);
         deaiToken.transferFrom(msg.sender, address(this), _amountDEAI);
@@ -96,6 +103,12 @@ contract Exchange {
         emit AddLiquidity(msg.sender, _amountCarbonCredit, _amountDEAI, shares);
     }
 
+    /**
+     * @dev Remove liquidity from the pool
+     * @param _shares The amount of liquidity shares to remove
+     * @return amountCarbonCredit The amount of Carbon Credits to receive
+     * @return amountDEAI The amount of DEAI tokens to receive
+     */
     function removeLiquidity(uint256 _shares) external returns (uint256 amountCarbonCredit, uint256 amountDEAI) {
         uint256 balCarbonCredit = carbonCreditToken.balanceOf(address(this));
         uint256 balDEAI = deaiToken.balanceOf(address(this));
@@ -114,6 +127,11 @@ contract Exchange {
         emit RemoveLiquidity(msg.sender, _shares, amountCarbonCredit, amountDEAI);
     }
 
+    /**
+     * @dev Calculate the square root of a number
+     * @param y The number to calculate the square root of
+     * @return z The square root of the number
+     */
     function _sqrt(uint256 y) private pure returns (uint256 z) {
         if (y > 3) {
             z = y;
