@@ -12,7 +12,10 @@ npx hardhat compile
 npx hardhat test
 ```
 Overall test results will be displayed in the terminal.
-Or can be found at result.txt in the root directory
+
+## Or it can be found at result.txt in the root directory
+
+
 # Smart Contract specification
 How will our Voting protocol (Voting.sol) work?
 1. Deploy the contract
